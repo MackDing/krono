@@ -1,7 +1,7 @@
 {
   "_contract": "Default-FAIL contract. Every criterion starts false. A row flips to passes:true ONLY after its evidence file is produced, Read, and the evaluator subagent returns PASS. The verify-gate hook enforces evidence-before-write. Growth rows flip only on a verified GitHub-API snapshot.",
   "mvp-scheduler-engine": { "passes": true, "criterion": "Cron-expression and interval schedules parse correctly and fire at the right time", "evidence": "evidence/mvp1-test.txt — go test 4/4 PASS, go vet clean; independent evaluator PASS 2026-05-18" },
-  "mvp-persistence": { "passes": false, "criterion": "Jobs and run history persist in embedded SQLite and survive a process restart", "evidence": null },
+  "mvp-persistence": { "passes": true, "criterion": "Jobs and run history persist in embedded SQLite and survive a process restart", "evidence": "evidence/mvp2-test.txt — go test 4/4 PASS incl. restart test, go vet clean; independent evaluator PASS 2026-05-18" },
   "mvp-job-shell": { "passes": false, "criterion": "Shell-command jobs execute; exit code, duration and output are captured", "evidence": null },
   "mvp-job-http": { "passes": false, "criterion": "HTTP-request jobs execute; response status and body are captured", "evidence": null },
   "mvp-run-observability": { "passes": false, "criterion": "Every run records start, end, exit code, duration and full output, queryable per job", "evidence": null },
