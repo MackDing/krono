@@ -8,7 +8,7 @@
 $ErrorActionPreference = 'Continue'
 
 # --- config -----------------------------------------------------------------
-$kronoRepo   = 'krono-sh/krono'   # update to the real slug once the repo is pushed
+$kronoRepo   = 'MackDing/krono'   # the live repo
 $competitors = @(
   'n8n-io/n8n', 'louislam/uptime-kuma', 'apache/airflow', 'kestra-io/kestra',
   'windmill-labs/windmill', 'triggerdotdev/trigger.dev', 'hatchet-dev/hatchet',
