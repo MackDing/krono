@@ -2,8 +2,12 @@ package runner
 
 import (
 	"context"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/krono-sh/krono/internal/scheduler"
@@ -21,8 +25,7 @@ func openStore(t *testing.T) *store.Store {
 }
 
 // TestRecordRunExecutesAndPersists is the core wiring check: executing a stored
-// job produces a Run that lands in the store and is queryable — deterministic,
-// no scheduler timer involved.
+// job produces a Run that lands in the store and is queryable.
 func TestRecordRunExecutesAndPersists(t *testing.T) {
 	st := openStore(t)
 	job := &store.Job{Name: "echo", Schedule: "@every 1m", Type: "shell", Command: "echo wired", Enabled: true}
@@ -30,7 +33,7 @@ func TestRecordRunExecutesAndPersists(t *testing.T) {
 		t.Fatalf("CreateJob: %v", err)
 	}
 
-	if err := recordRun(context.Background(), st, job); err != nil {
+	if err := recordRun(context.Background(), st, job, ""); err != nil {
 		t.Fatalf("recordRun: %v", err)
 	}
 
@@ -53,8 +56,58 @@ func TestRecordRunExecutesAndPersists(t *testing.T) {
 	}
 }
 
-// TestLoadRegistersEnabledJobsOnly checks that Load registers every enabled
-// job onto the scheduler and skips disabled ones.
+// TestRecordRunNotifiesOnFailure checks that a failed run POSTs a webhook and a
+// successful run does not.
+func TestRecordRunNotifiesOnFailure(t *testing.T) {
+	st := openStore(t)
+	var (
+		mu   sync.Mutex
+		hits int
+		body string
+	)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		mu.Lock()
+		hits++
+		body = string(b)
+		mu.Unlock()
+	}))
+	defer srv.Close()
+
+	failJob := &store.Job{Name: "failing", Schedule: "@every 1m", Type: "shell", Command: "exit 7", Enabled: true}
+	if err := st.CreateJob(failJob); err != nil {
+		t.Fatalf("CreateJob: %v", err)
+	}
+	if err := recordRun(context.Background(), st, failJob, srv.URL); err != nil {
+		t.Fatalf("recordRun (failing): %v", err)
+	}
+	mu.Lock()
+	h, b := hits, body
+	mu.Unlock()
+	if h != 1 {
+		t.Fatalf("webhook hit %d times for a failed run, want 1", h)
+	}
+	if !strings.Contains(b, "failing") || !strings.Contains(b, "failure") {
+		t.Fatalf("webhook payload missing job/status: %s", b)
+	}
+
+	okJob := &store.Job{Name: "ok", Schedule: "@every 1m", Type: "shell", Command: "echo ok", Enabled: true}
+	if err := st.CreateJob(okJob); err != nil {
+		t.Fatalf("CreateJob: %v", err)
+	}
+	if err := recordRun(context.Background(), st, okJob, srv.URL); err != nil {
+		t.Fatalf("recordRun (ok): %v", err)
+	}
+	mu.Lock()
+	h = hits
+	mu.Unlock()
+	if h != 1 {
+		t.Fatalf("webhook hit %d times total, want 1 — a successful run must not notify", h)
+	}
+}
+
+// TestLoadRegistersEnabledJobsOnly checks that Load registers every enabled job
+// onto the scheduler and skips disabled ones.
 func TestLoadRegistersEnabledJobsOnly(t *testing.T) {
 	st := openStore(t)
 	for _, j := range []*store.Job{
@@ -68,7 +121,7 @@ func TestLoadRegistersEnabledJobsOnly(t *testing.T) {
 	}
 
 	sc := scheduler.New()
-	n, err := Load(sc, st)
+	n, err := Load(sc, st, "")
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
@@ -88,7 +141,7 @@ func TestLoadRejectsBadSchedule(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("CreateJob: %v", err)
 	}
-	if _, err := Load(scheduler.New(), st); err == nil {
+	if _, err := Load(scheduler.New(), st, ""); err == nil {
 		t.Fatal("Load with an unparseable schedule: want error, got nil")
 	}
 }

@@ -1,6 +1,6 @@
-// Package runner wires the store, scheduler, and executor together: it loads
-// persisted jobs onto the scheduler so that each fire executes the job and
-// records a Run back to the store.
+// Package runner wires the store, scheduler, executor, and notifier together:
+// it loads persisted jobs onto the scheduler so each fire executes the job,
+// records a Run, and webhook-notifies on failure.
 package runner
 
 import (
@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/krono-sh/krono/internal/executor"
+	"github.com/krono-sh/krono/internal/notify"
 	"github.com/krono-sh/krono/internal/schedule"
 	"github.com/krono-sh/krono/internal/scheduler"
 	"github.com/krono-sh/krono/internal/store"
@@ -17,9 +18,10 @@ import (
 
 // Load reads every enabled job from st, parses its schedule, and registers it
 // with sc. When a registered job fires it is executed and the resulting Run is
-// saved back to st. Load returns the number of jobs registered; it fails fast
-// if any enabled job has an unparseable schedule.
-func Load(sc *scheduler.Scheduler, st *store.Store) (int, error) {
+// saved back to st; a failed run additionally POSTs a webhook to notifyURL
+// (when notifyURL is non-empty). Load returns the number of jobs registered;
+// it fails fast if any enabled job has an unparseable schedule.
+func Load(sc *scheduler.Scheduler, st *store.Store, notifyURL string) (int, error) {
 	jobs, err := st.ListJobs()
 	if err != nil {
 		return 0, fmt.Errorf("runner: list jobs: %w", err)
@@ -38,7 +40,7 @@ func Load(sc *scheduler.Scheduler, st *store.Store) (int, error) {
 			Name:     job.Name,
 			Schedule: sch,
 			Run: func(ctx context.Context, fired time.Time) {
-				if err := recordRun(ctx, st, job); err != nil {
+				if err := recordRun(ctx, st, job, notifyURL); err != nil {
 					log.Printf("%v", err)
 				}
 			},
@@ -48,12 +50,17 @@ func Load(sc *scheduler.Scheduler, st *store.Store) (int, error) {
 	return registered, nil
 }
 
-// recordRun executes job and persists the resulting Run to st. It is the unit
-// the scheduler invokes on every fire.
-func recordRun(ctx context.Context, st *store.Store, job *store.Job) error {
+// recordRun executes job, persists the resulting Run, and — if the run failed —
+// sends a webhook notification. It is the unit the scheduler invokes per fire.
+func recordRun(ctx context.Context, st *store.Store, job *store.Job, notifyURL string) error {
 	run := executor.Execute(ctx, job)
 	if err := st.CreateRun(run); err != nil {
 		return fmt.Errorf("runner: record run for job %q: %w", job.Name, err)
+	}
+	if run.Status == "failure" {
+		if err := notify.Webhook(ctx, notifyURL, job, run); err != nil {
+			log.Printf("runner: notify for job %q: %v", job.Name, err)
+		}
 	}
 	return nil
 }

@@ -1,8 +1,8 @@
 // Command krono is a self-hosted job scheduler with a web dashboard.
 //
 // On start it opens its SQLite store, serves the dashboard, loads every
-// enabled job, and runs them on schedule — executing each job and recording
-// the run.
+// enabled job, and runs them on schedule — executing each job, recording the
+// run, and webhook-notifying on failure.
 package main
 
 import (
@@ -26,36 +26,23 @@ func main() {
 	runFor := time.Duration(0)
 	dbPath := "krono.db"
 	addr := ":8400"
+	notifyURL := ""
 	for i := 1; i < len(os.Args); i++ {
 		switch os.Args[i] {
 		case "-v", "--version", "version":
 			fmt.Printf("krono %s\n", version)
 			return
 		case "--for":
-			if i+1 >= len(os.Args) {
-				fmt.Fprintln(os.Stderr, "krono: --for needs a duration, e.g. --for 30s")
-				os.Exit(2)
-			}
-			d, err := time.ParseDuration(os.Args[i+1])
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "krono: bad --for duration: %v\n", err)
-				os.Exit(2)
-			}
-			runFor = d
+			runFor = mustDuration(argValue(i))
 			i++
 		case "--db":
-			if i+1 >= len(os.Args) {
-				fmt.Fprintln(os.Stderr, "krono: --db needs a path")
-				os.Exit(2)
-			}
-			dbPath = os.Args[i+1]
+			dbPath = argValue(i)
 			i++
 		case "--addr":
-			if i+1 >= len(os.Args) {
-				fmt.Fprintln(os.Stderr, "krono: --addr needs an address, e.g. --addr :8400")
-				os.Exit(2)
-			}
-			addr = os.Args[i+1]
+			addr = argValue(i)
+			i++
+		case "--notify-url":
+			notifyURL = argValue(i)
 			i++
 		default:
 			fmt.Fprintf(os.Stderr, "krono: unknown argument %q\n", os.Args[i])
@@ -78,7 +65,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Serve the dashboard alongside the scheduler.
 	httpSrv := &http.Server{Addr: addr, Handler: web.NewServer(st).Handler()}
 	go func() {
 		if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -86,9 +72,12 @@ func main() {
 		}
 	}()
 	fmt.Printf("dashboard: http://localhost%s\n", addr)
+	if notifyURL != "" {
+		fmt.Printf("failure webhook: %s\n", notifyURL)
+	}
 
 	sc := scheduler.New()
-	n, err := runner.Load(sc, st)
+	n, err := runner.Load(sc, st, notifyURL)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "krono:", err)
 		os.Exit(1)
@@ -114,6 +103,24 @@ func main() {
 	time.Sleep(200 * time.Millisecond) // let any in-flight runs finish before the summary
 	fmt.Println("\nscheduler stopped — run history:")
 	printRunSummary(st)
+}
+
+// argValue returns the argument after os.Args[i], or exits if it is missing.
+func argValue(i int) string {
+	if i+1 >= len(os.Args) {
+		fmt.Fprintf(os.Stderr, "krono: %s needs a value\n", os.Args[i])
+		os.Exit(2)
+	}
+	return os.Args[i+1]
+}
+
+func mustDuration(s string) time.Duration {
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "krono: bad duration %q: %v\n", s, err)
+		os.Exit(2)
+	}
+	return d
 }
 
 // seedDemoJobs inserts a couple of demo jobs the first time krono runs against
