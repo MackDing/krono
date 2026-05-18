@@ -2,7 +2,9 @@
 //
 // On start it opens its SQLite store, serves the dashboard, loads every
 // enabled job, and runs them on schedule — executing each job, recording the
-// run, and webhook-notifying on failure.
+// run, and webhook-notifying on failure. It re-syncs with the store every few
+// seconds, so jobs created or edited in the dashboard take effect without a
+// restart.
 package main
 
 import (
@@ -21,6 +23,9 @@ import (
 
 // version is the build version, overridden at release time via -ldflags.
 var version = "0.0.0-dev"
+
+// resyncInterval is how often the scheduler is reconciled with the store.
+const resyncInterval = 10 * time.Second
 
 func main() {
 	runFor := time.Duration(0)
@@ -77,7 +82,7 @@ func main() {
 	}
 
 	sc := scheduler.New()
-	n, err := runner.Load(sc, st, notifyURL)
+	n, err := runner.Sync(sc, st, notifyURL)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "krono:", err)
 		os.Exit(1)
@@ -94,6 +99,10 @@ func main() {
 	} else {
 		fmt.Println("running (Ctrl+C to stop)")
 	}
+
+	// Re-sync with the store so dashboard edits take effect without a restart.
+	go resyncLoop(ctx, sc, st, notifyURL)
+
 	sc.Run(ctx)
 
 	shutCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -103,6 +112,24 @@ func main() {
 	time.Sleep(200 * time.Millisecond) // let any in-flight runs finish before the summary
 	fmt.Println("\nscheduler stopped — run history:")
 	printRunSummary(st)
+}
+
+// resyncLoop reconciles the scheduler with the store every resyncInterval
+// until ctx ends, so jobs added or edited in the dashboard start running
+// without a restart.
+func resyncLoop(ctx context.Context, sc *scheduler.Scheduler, st *store.Store, notifyURL string) {
+	ticker := time.NewTicker(resyncInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if _, err := runner.Sync(sc, st, notifyURL); err != nil {
+				fmt.Fprintln(os.Stderr, "krono: re-sync:", err)
+			}
+		}
+	}
 }
 
 // argValue returns the argument after os.Args[i], or exits if it is missing.

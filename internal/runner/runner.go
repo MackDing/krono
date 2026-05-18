@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/MackDing/krono/internal/executor"
@@ -16,27 +17,30 @@ import (
 	"github.com/MackDing/krono/internal/store"
 )
 
-// Load reads every enabled job from st, parses its schedule, and registers it
-// with sc. When a registered job fires it is executed and the resulting Run is
-// saved back to st; a failed run additionally POSTs a webhook to notifyURL
-// (when notifyURL is non-empty). Load returns the number of jobs registered;
-// it fails fast if any enabled job has an unparseable schedule.
-func Load(sc *scheduler.Scheduler, st *store.Store, notifyURL string) (int, error) {
+// Sync reconciles the scheduler with the enabled jobs currently in the store:
+// jobs created, edited, or deleted (e.g. via the web dashboard) take effect on
+// the next call — no restart needed. When a registered job fires it is
+// executed, the Run is recorded, and a failed run POSTs a webhook to notifyURL.
+// Sync is safe to call repeatedly and returns the number of jobs registered. A
+// job with an unparseable schedule is skipped and logged, not fatal.
+func Sync(sc *scheduler.Scheduler, st *store.Store, notifyURL string) (int, error) {
 	jobs, err := st.ListJobs()
 	if err != nil {
 		return 0, fmt.Errorf("runner: list jobs: %w", err)
 	}
-	registered := 0
+	registered := make([]*scheduler.Job, 0, len(jobs))
 	for _, j := range jobs {
 		if !j.Enabled {
 			continue
 		}
 		sch, err := schedule.Parse(j.Schedule)
 		if err != nil {
-			return registered, fmt.Errorf("runner: job %q (id %d): %w", j.Name, j.ID, err)
+			log.Printf("runner: skipping job %q (id %d): %v", j.Name, j.ID, err)
+			continue
 		}
 		job := j
-		sc.Add(&scheduler.Job{
+		registered = append(registered, &scheduler.Job{
+			Key:      strconv.FormatInt(job.ID, 10),
 			Name:     job.Name,
 			Schedule: sch,
 			Run: func(ctx context.Context, fired time.Time) {
@@ -45,9 +49,9 @@ func Load(sc *scheduler.Scheduler, st *store.Store, notifyURL string) (int, erro
 				}
 			},
 		})
-		registered++
 	}
-	return registered, nil
+	sc.Sync(registered)
+	return len(registered), nil
 }
 
 // recordRun executes job, persists the resulting Run, and — if the run failed —

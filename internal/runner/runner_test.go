@@ -106,9 +106,9 @@ func TestRecordRunNotifiesOnFailure(t *testing.T) {
 	}
 }
 
-// TestLoadRegistersEnabledJobsOnly checks that Load registers every enabled job
-// onto the scheduler and skips disabled ones.
-func TestLoadRegistersEnabledJobsOnly(t *testing.T) {
+// TestSyncRegistersEnabledJobsOnly checks that Sync registers every enabled job
+// and skips disabled ones.
+func TestSyncRegistersEnabledJobsOnly(t *testing.T) {
 	st := openStore(t)
 	for _, j := range []*store.Job{
 		{Name: "on-interval", Schedule: "@every 1m", Type: "shell", Command: "echo a", Enabled: true},
@@ -121,27 +121,58 @@ func TestLoadRegistersEnabledJobsOnly(t *testing.T) {
 	}
 
 	sc := scheduler.New()
-	n, err := Load(sc, st, "")
+	n, err := Sync(sc, st, "")
 	if err != nil {
-		t.Fatalf("Load: %v", err)
+		t.Fatalf("Sync: %v", err)
 	}
 	if n != 2 {
-		t.Fatalf("Load registered %d jobs, want 2 (the disabled job must be skipped)", n)
+		t.Fatalf("Sync registered %d jobs, want 2 (the disabled job must be skipped)", n)
 	}
 	if sc.Jobs() != 2 {
 		t.Fatalf("scheduler has %d jobs, want 2", sc.Jobs())
 	}
 }
 
-// TestLoadRejectsBadSchedule checks that an unparseable schedule fails Load.
-func TestLoadRejectsBadSchedule(t *testing.T) {
+// TestSyncSkipsBadSchedule checks that a job with an unparseable schedule is
+// skipped (and logged) rather than failing the whole sync.
+func TestSyncSkipsBadSchedule(t *testing.T) {
 	st := openStore(t)
-	if err := st.CreateJob(&store.Job{
-		Name: "bad", Schedule: "not-a-cron", Type: "shell", Command: "echo x", Enabled: true,
-	}); err != nil {
+	if err := st.CreateJob(&store.Job{Name: "good", Schedule: "@every 1m", Type: "shell", Command: "echo ok", Enabled: true}); err != nil {
+		t.Fatalf("CreateJob good: %v", err)
+	}
+	if err := st.CreateJob(&store.Job{Name: "bad", Schedule: "not-a-cron", Type: "shell", Command: "echo x", Enabled: true}); err != nil {
+		t.Fatalf("CreateJob bad: %v", err)
+	}
+
+	sc := scheduler.New()
+	n, err := Sync(sc, st, "")
+	if err != nil {
+		t.Fatalf("Sync should not fail on a bad schedule, got: %v", err)
+	}
+	if n != 1 {
+		t.Fatalf("Sync registered %d jobs, want 1 (the bad-schedule job must be skipped)", n)
+	}
+}
+
+// TestSyncPicksUpNewJobsWithoutRestart proves the fix for the launch-blocking
+// bug: a job created after the first Sync is picked up by the next Sync.
+func TestSyncPicksUpNewJobsWithoutRestart(t *testing.T) {
+	st := openStore(t)
+	sc := scheduler.New()
+
+	if n, err := Sync(sc, st, ""); err != nil || n != 0 {
+		t.Fatalf("initial Sync: n=%d err=%v, want 0/nil", n, err)
+	}
+
+	// a job created after the first Sync — as the web dashboard would create it
+	if err := st.CreateJob(&store.Job{Name: "added-later", Schedule: "@every 1m", Type: "shell", Command: "echo x", Enabled: true}); err != nil {
 		t.Fatalf("CreateJob: %v", err)
 	}
-	if _, err := Load(scheduler.New(), st, ""); err == nil {
-		t.Fatal("Load with an unparseable schedule: want error, got nil")
+
+	if n, err := Sync(sc, st, ""); err != nil || n != 1 {
+		t.Fatalf("re-Sync after a new job: n=%d err=%v, want 1/nil", n, err)
+	}
+	if sc.Jobs() != 1 {
+		t.Fatalf("scheduler has %d jobs after re-Sync, want 1 — the new job was not picked up", sc.Jobs())
 	}
 }

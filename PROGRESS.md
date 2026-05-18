@@ -3,40 +3,36 @@
 Handoff note for the long-running build/growth loop. Every session reads this
 first and updates it before stopping. Conventions: `CLAUDE.md`.
 
-## Done — MVP COMPLETE and the repo is LIVE
-- MVP-1..5 plus the scheduler/executor/store wiring — a working self-hosted job
-  scheduler in one Go binary. All 8 MVP contract rows green. Every milestone was
-  built test-first and passed an independent evaluator. 32 tests, go vet clean.
-- Repo: **github.com/MackDing/krono** — PUBLIC, pushed (9 commits on `main`).
-  13 SEO topics set (cron, scheduler, job-scheduler, self-hosted, ai-agents, …).
-  Module path is github.com/MackDing/krono.
-- Growth dashboard (tools/dashboard.ps1) now tracks the live repo — day-1
-  baseline 2026-05-18: Krono 0 stars; 10 competitors snapshotted.
+## Done — MVP complete, repo LIVE, pre-launch hardening underway
+- MVP-1..5 + wiring — a working self-hosted job scheduler in one Go binary.
+  All 8 MVP contract rows green; every milestone TDD'd and evaluator-passed.
+- Repo: github.com/MackDing/krono — PUBLIC, pushed, 13 SEO topics.
+- Live job reload — jobs created / edited / deleted in the web dashboard take
+  effect without restarting krono (Scheduler.Sync reconciles by key + a 10s
+  resync loop; a wake channel fires new jobs promptly). TDD; 35 tests;
+  independent evaluator PASS (e2e: a job added to the running instance fired
+  without a restart, exact cadence held across resync cycles).
+- Growth dashboard (tools/dashboard.ps1) tracks the live repo.
 
 ## State
-Krono is live and working: cron/interval schedules, SQLite persistence,
-shell + HTTP job execution, run observability, an embedded web dashboard,
-and failure webhooks — all in one Go binary. 0 stars (just published, not yet
-announced anywhere).
+Krono is live and working, and dashboard edits apply without a restart.
+0 stars — not yet announced anywhere.
 
-## Next — the launch (needs the user; cannot be automated)
-- Announce — the agent cannot post for you:
-  - Show HN: "Show HN: Krono – a self-hosted job scheduler with a web dashboard"
-  - r/selfhosted, Product Hunt — timed to the GEO windows (NA 14:00-17:00 UTC,
-    Tue-Thu is the highest-leverage slot).
-- Pre-announce polish: a demo GIF / screenshot in the README; a short docs page.
-- Run tools/dashboard.ps1 daily (Windows Task Scheduler) — the PDCA C-Check.
-- Iterate per the dashboard: SEO (topics/keywords), GEO (channels), product
-  (the roadmap), ops (which channels actually convert).
+## Next — finish pre-launch, then announce (the announce needs the user)
+- Demo screenshot / GIF of the dashboard for the README.
+- A GitHub Actions CI workflow (go build / vet / test -race) — `-race` cannot
+  run locally (no C compiler); CI on GitHub's runners closes that.
+- Draft the announce posts: Show HN, r/selfhosted, Product Hunt.
+- Announce — the agent cannot post; the user posts, timed to the GEO windows.
+- Run tools/dashboard.ps1 daily (Task Scheduler) — the PDCA C-Check.
 
 ## Notes
 - Go: C:\Users\RD16019\go-toolchain\go\bin\go.exe ; go.mod: go 1.25.0, modernc.org/sqlite.
-- git remote origin = https://github.com/MackDing/krono.git (HTTPS, gh credential helper).
+- git remote origin = https://github.com/MackDing/krono.git (HTTPS).
 - Hooks are PowerShell; .claude/settings.json not wired (classifier-blocked).
-- Build loop: TDD -> independent evaluator -> flip contract -> commit checkpoint.
-- Known follow-ups (non-blocking): live job reload (UI-created jobs need a
-  restart); per-job execution timeout; the dashboard "1d change" column is
-  really "change since last snapshot"; dashboard JS try/catch; a shared status
-  constant instead of "failure"/"success" string literals.
-- Targets: 3-month base 5k stars / stretch 10k; 100k = North Star. Star
-  criteria in test-results.json are evidence-gated (GitHub API snapshot).
+- Build loop: TDD -> independent evaluator -> commit checkpoint.
+- Known follow-ups (non-blocking): per-job execution timeout; dashboard JS
+  try/catch on the /runs fetch; a shared run-status constant; the dashboard
+  "1d change" column is really "change since last snapshot"; resync latency is
+  up to ~10s (acceptable). `go test -race` should run in CI.
+- Targets: 3-month base 5k stars / stretch 10k; 100k = North Star.
