@@ -1,5 +1,7 @@
 # Krono
 
+[![CI](https://github.com/MackDing/krono/actions/workflows/ci.yml/badge.svg)](https://github.com/MackDing/krono/actions/workflows/ci.yml)
+
 > A modern, self-hosted job scheduler — cron with a web dashboard.
 > Schedule shell commands, HTTP requests, and AI agents from a single Go binary.
 
@@ -55,12 +57,12 @@ couple of demo jobs so you can see it working right away.
 - Persistent jobs and run history (embedded SQLite)
 - Shell-command and HTTP-request jobs — exit code, duration, and output captured
 - A web dashboard: create / edit / delete jobs and browse per-job run history
+- Live job reload — dashboard edits take effect within ~10s, no restart needed
 - Webhook notification when a run fails
 - Ships as one self-contained static binary
 
 ## Roadmap
 
-- Live job reload — apply dashboard changes without restarting
 - Distributed mode — no double-firing across multiple instances
 - Container job type; job dependencies / DAGs
 - A native AI-agent job type with token and cost tracking
