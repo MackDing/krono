@@ -29,6 +29,12 @@ func Execute(ctx context.Context, job *store.Job) *store.Run {
 		runShell(ctx, job.Command, run)
 	}
 	run.EndedAt = time.Now()
+	// A job interrupted by a cancelled context was not run to a verdict — it
+	// was cut short (e.g. during shutdown). Record that as "cancelled" rather
+	// than a misleading "failure"; a genuine success is left untouched.
+	if ctx.Err() != nil && run.Status != "success" {
+		run.Status = "cancelled"
+	}
 	return run
 }
 

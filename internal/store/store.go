@@ -31,7 +31,7 @@ type Run struct {
 	JobID     int64
 	StartedAt time.Time
 	EndedAt   time.Time // zero while still running
-	Status    string    // "running", "success", "failure"
+	Status    string    // "running", "success", "failure", "cancelled"
 	ExitCode  int
 	Output    string
 }

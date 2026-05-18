@@ -60,6 +60,12 @@ func (s *Scheduler) Run(ctx context.Context) {
 			return
 		case <-timer.C:
 		}
+		// The timer and ctx.Done can become ready together; do not start jobs
+		// once the context is done, so a fired job never runs against a dead
+		// context (which would record a misleading failure during shutdown).
+		if ctx.Err() != nil {
+			return
+		}
 		s.fireDue(ctx, time.Now())
 	}
 }

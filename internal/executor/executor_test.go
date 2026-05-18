@@ -116,3 +116,15 @@ func TestRunIsObservableViaStore(t *testing.T) {
 		t.Fatalf("run output not recorded: %q", got.Output)
 	}
 }
+
+// TestExecuteCancelledContext verifies that a job interrupted by a cancelled
+// context is recorded as "cancelled", not as a misleading "failure".
+func TestExecuteCancelledContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancel before the job runs
+
+	run := Execute(ctx, &store.Job{Type: "shell", Command: "echo hi"})
+	if run.Status != "cancelled" {
+		t.Fatalf("Status = %q, want cancelled when the context is already cancelled", run.Status)
+	}
+}
