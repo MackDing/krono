@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/krono-sh/krono/internal/store"
+	"github.com/MackDing/krono/internal/store"
 )
 
 func newTestServer(t *testing.T) (http.Handler, *store.Store) {

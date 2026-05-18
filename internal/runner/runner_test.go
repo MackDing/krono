@@ -10,8 +10,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/krono-sh/krono/internal/scheduler"
-	"github.com/krono-sh/krono/internal/store"
+	"github.com/MackDing/krono/internal/scheduler"
+	"github.com/MackDing/krono/internal/store"
 )
 
 func openStore(t *testing.T) *store.Store {

@@ -12,7 +12,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/krono-sh/krono/internal/store"
+	"github.com/MackDing/krono/internal/store"
 )
 
 // maxOutput caps how much job output is captured, keeping run records bounded.

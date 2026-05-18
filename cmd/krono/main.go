@@ -13,10 +13,10 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/krono-sh/krono/internal/runner"
-	"github.com/krono-sh/krono/internal/scheduler"
-	"github.com/krono-sh/krono/internal/store"
-	"github.com/krono-sh/krono/internal/web"
+	"github.com/MackDing/krono/internal/runner"
+	"github.com/MackDing/krono/internal/scheduler"
+	"github.com/MackDing/krono/internal/store"
+	"github.com/MackDing/krono/internal/web"
 )
 
 // version is the build version, overridden at release time via -ldflags.

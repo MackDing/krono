@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/krono-sh/krono/internal/schedule"
+	"github.com/MackDing/krono/internal/schedule"
 )
 
 func TestSchedulerFiresOnInterval(t *testing.T) {

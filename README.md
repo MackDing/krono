@@ -36,7 +36,7 @@ command:   python research_agent.py --topic "AI news"
 Krono builds from source today (prebuilt release binaries are coming):
 
 ```bash
-git clone https://github.com/krono-sh/krono.git
+git clone https://github.com/MackDing/krono.git
 cd krono
 go build -o krono ./cmd/krono
 ./krono

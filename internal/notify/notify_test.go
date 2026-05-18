@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/krono-sh/krono/internal/store"
+	"github.com/MackDing/krono/internal/store"
 )
 
 func TestWebhookPostsRunDetails(t *testing.T) {

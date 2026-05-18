@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/krono-sh/krono/internal/store"
+	"github.com/MackDing/krono/internal/store"
 )
 
 func TestExecuteShellSuccess(t *testing.T) {

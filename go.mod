@@ -1,4 +1,4 @@
-module github.com/krono-sh/krono
+module github.com/MackDing/krono
 
 go 1.25.0
 

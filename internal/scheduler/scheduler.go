@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/krono-sh/krono/internal/schedule"
+	"github.com/MackDing/krono/internal/schedule"
 )
 
 // Job is a unit of scheduled work.

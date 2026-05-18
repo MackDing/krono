@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/krono-sh/krono/internal/store"
+	"github.com/MackDing/krono/internal/store"
 )
 
 // payload is the JSON body POSTed to the webhook.

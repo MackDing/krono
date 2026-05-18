@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/krono-sh/krono/internal/schedule"
-	"github.com/krono-sh/krono/internal/store"
+	"github.com/MackDing/krono/internal/schedule"
+	"github.com/MackDing/krono/internal/store"
 )
 
 //go:embed index.html
