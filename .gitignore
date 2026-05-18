@@ -1,0 +1,26 @@
+# Compiled binary
+/krono
+/krono.exe
+/dist/
+*.test
+
+# Local data (SQLite)
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+/data/
+
+# Web UI build artifacts
+/web/node_modules/
+/web/dist/
+
+# Environment / secrets
+.env
+.env.local
+
+# Editor / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

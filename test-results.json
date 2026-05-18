@@ -1,0 +1,16 @@
+{
+  "_contract": "Default-FAIL contract. Every criterion starts false. A row flips to passes:true ONLY after its evidence file is produced, Read, and the evaluator subagent returns PASS. The verify-gate hook enforces evidence-before-write. Growth rows flip only on a verified GitHub-API snapshot.",
+  "mvp-scheduler-engine": { "passes": true, "criterion": "Cron-expression and interval schedules parse correctly and fire at the right time", "evidence": "evidence/mvp1-test.txt — go test 4/4 PASS, go vet clean; independent evaluator PASS 2026-05-18" },
+  "mvp-persistence": { "passes": false, "criterion": "Jobs and run history persist in embedded SQLite and survive a process restart", "evidence": null },
+  "mvp-job-shell": { "passes": false, "criterion": "Shell-command jobs execute; exit code, duration and output are captured", "evidence": null },
+  "mvp-job-http": { "passes": false, "criterion": "HTTP-request jobs execute; response status and body are captured", "evidence": null },
+  "mvp-run-observability": { "passes": false, "criterion": "Every run records start, end, exit code, duration and full output, queryable per job", "evidence": null },
+  "mvp-web-dashboard": { "passes": false, "criterion": "Web UI lists jobs, creates/edits/deletes them, and shows run history and logs", "evidence": null },
+  "mvp-single-binary": { "passes": false, "criterion": "go build produces one static binary with the web UI embedded; download-and-run works", "evidence": null },
+  "mvp-failure-notify": { "passes": false, "criterion": "A failed run triggers a webhook notification", "evidence": null },
+  "growth-launch": { "passes": false, "criterion": "Repo public, MVP released, launched on Show HN + Product Hunt + r/selfhosted", "evidence": null },
+  "growth-stars-1k": { "passes": false, "criterion": "1,000 stars, verified via GitHub API snapshot", "evidence": null },
+  "growth-stars-5k": { "passes": false, "criterion": "5,000 stars (3-month base target), verified via GitHub API snapshot", "evidence": null },
+  "growth-stars-10k": { "passes": false, "criterion": "10,000 stars (3-month stretch target), verified via GitHub API snapshot", "evidence": null },
+  "growth-stars-100k": { "passes": false, "criterion": "100,000 stars (North Star), verified via GitHub API snapshot", "evidence": null }
+}
