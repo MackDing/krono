@@ -5,7 +5,7 @@
   "mvp-job-shell": { "passes": true, "criterion": "Shell-command jobs execute; exit code, duration and output are captured", "evidence": "evidence/mvp3-test.txt — go test PASS, go vet clean; independent evaluator PASS 2026-05-18" },
   "mvp-job-http": { "passes": true, "criterion": "HTTP-request jobs execute; response status and body are captured", "evidence": "evidence/mvp3-test.txt — go test PASS, go vet clean; independent evaluator PASS 2026-05-18" },
   "mvp-run-observability": { "passes": true, "criterion": "Every run records start, end, exit code, duration and full output, queryable per job", "evidence": "evidence/mvp3-test.txt — go test PASS, go vet clean; independent evaluator PASS 2026-05-18" },
-  "mvp-web-dashboard": { "passes": false, "criterion": "Web UI lists jobs, creates/edits/deletes them, and shows run history and logs", "evidence": null },
+  "mvp-web-dashboard": { "passes": true, "criterion": "Web UI lists jobs, creates/edits/deletes them, and shows run history and logs", "evidence": "evidence/mvp4b-test.txt — go test 28/28, go vet clean; HTTP end-to-end verified; independent evaluator PASS 2026-05-18" },
   "mvp-single-binary": { "passes": false, "criterion": "go build produces one static binary with the web UI embedded; download-and-run works", "evidence": null },
   "mvp-failure-notify": { "passes": false, "criterion": "A failed run triggers a webhook notification", "evidence": null },
   "growth-launch": { "passes": false, "criterion": "Repo public, MVP released, launched on Show HN + Product Hunt + r/selfhosted", "evidence": null },

@@ -178,3 +178,17 @@ func TestUpdateMissingJob(t *testing.T) {
 		t.Fatalf("status = %d, want 404 for PUT on a missing job", rec.Code)
 	}
 }
+
+func TestServesDashboardHTML(t *testing.T) {
+	h, _ := newTestServer(t)
+	rec := do(h, "GET", "/", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	if !bytes.Contains(rec.Body.Bytes(), []byte("<html")) {
+		t.Fatal("response is not an HTML document")
+	}
+	if !bytes.Contains(rec.Body.Bytes(), []byte("Krono")) {
+		t.Fatal("dashboard HTML does not mention Krono")
+	}
+}

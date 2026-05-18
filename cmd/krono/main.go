@@ -1,13 +1,14 @@
-// Command krono is a self-hosted job scheduler.
+// Command krono is a self-hosted job scheduler with a web dashboard.
 //
-// On start it opens its SQLite store, loads every enabled job, and runs them
-// on schedule — executing each job and recording the run. The web UI is still
-// being built; see README.md for the roadmap.
+// On start it opens its SQLite store, serves the dashboard, loads every
+// enabled job, and runs them on schedule — executing each job and recording
+// the run.
 package main
 
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"github.com/krono-sh/krono/internal/runner"
 	"github.com/krono-sh/krono/internal/scheduler"
 	"github.com/krono-sh/krono/internal/store"
+	"github.com/krono-sh/krono/internal/web"
 )
 
 // version is the build version, overridden at release time via -ldflags.
@@ -23,6 +25,7 @@ var version = "0.0.0-dev"
 func main() {
 	runFor := time.Duration(0)
 	dbPath := "krono.db"
+	addr := ":8400"
 	for i := 1; i < len(os.Args); i++ {
 		switch os.Args[i] {
 		case "-v", "--version", "version":
@@ -47,6 +50,13 @@ func main() {
 			}
 			dbPath = os.Args[i+1]
 			i++
+		case "--addr":
+			if i+1 >= len(os.Args) {
+				fmt.Fprintln(os.Stderr, "krono: --addr needs an address, e.g. --addr :8400")
+				os.Exit(2)
+			}
+			addr = os.Args[i+1]
+			i++
 		default:
 			fmt.Fprintf(os.Stderr, "krono: unknown argument %q\n", os.Args[i])
 			os.Exit(2)
@@ -68,6 +78,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Serve the dashboard alongside the scheduler.
+	httpSrv := &http.Server{Addr: addr, Handler: web.NewServer(st).Handler()}
+	go func() {
+		if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			fmt.Fprintln(os.Stderr, "krono: web server:", err)
+		}
+	}()
+	fmt.Printf("dashboard: http://localhost%s\n", addr)
+
 	sc := scheduler.New()
 	n, err := runner.Load(sc, st)
 	if err != nil {
@@ -87,6 +106,10 @@ func main() {
 		fmt.Println("running (Ctrl+C to stop)")
 	}
 	sc.Run(ctx)
+
+	shutCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	_ = httpSrv.Shutdown(shutCtx)
 
 	time.Sleep(200 * time.Millisecond) // let any in-flight runs finish before the summary
 	fmt.Println("\nscheduler stopped — run history:")

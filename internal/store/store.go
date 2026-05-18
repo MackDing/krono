@@ -16,24 +16,24 @@ const tsFormat = time.RFC3339Nano
 
 // Job is a persisted scheduled job.
 type Job struct {
-	ID        int64
-	Name      string
-	Schedule  string // a spec parseable by internal/schedule, e.g. "0 8 * * *"
-	Type      string // "shell" or "http"
-	Command   string // shell command line, or HTTP URL
-	Enabled   bool
-	CreatedAt time.Time
+	ID        int64     `json:"id"`
+	Name      string    `json:"name"`
+	Schedule  string    `json:"schedule"` // a spec parseable by internal/schedule
+	Type      string    `json:"type"`     // "shell" or "http"
+	Command   string    `json:"command"`  // shell command line, or HTTP URL
+	Enabled   bool      `json:"enabled"`
+	CreatedAt time.Time `json:"createdAt"`
 }
 
 // Run is one persisted execution of a job.
 type Run struct {
-	ID        int64
-	JobID     int64
-	StartedAt time.Time
-	EndedAt   time.Time // zero while still running
-	Status    string    // "running", "success", "failure", "cancelled"
-	ExitCode  int
-	Output    string
+	ID        int64     `json:"id"`
+	JobID     int64     `json:"jobId"`
+	StartedAt time.Time `json:"startedAt"`
+	EndedAt   time.Time `json:"endedAt"` // zero while still running
+	Status    string    `json:"status"`  // "running", "success", "failure", "cancelled"
+	ExitCode  int       `json:"exitCode"`
+	Output    string    `json:"output"`
 }
 
 // Store is a handle to the Krono SQLite database.

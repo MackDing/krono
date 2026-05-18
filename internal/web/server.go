@@ -1,7 +1,9 @@
-// Package web serves the Krono dashboard: a JSON API over the job store.
+// Package web serves the Krono dashboard: an embedded HTML UI and a JSON API
+// over the job store.
 package web
 
 import (
+	_ "embed"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -10,6 +12,9 @@ import (
 	"github.com/krono-sh/krono/internal/schedule"
 	"github.com/krono-sh/krono/internal/store"
 )
+
+//go:embed index.html
+var indexHTML []byte
 
 // Server serves the Krono dashboard HTTP API, backed by the job store.
 type Server struct {
@@ -21,9 +26,10 @@ func NewServer(st *store.Store) *Server {
 	return &Server{store: st}
 }
 
-// Handler returns the HTTP handler for the dashboard API.
+// Handler returns the HTTP handler for the dashboard UI and its JSON API.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /{$}", s.index)
 	mux.HandleFunc("GET /api/jobs", s.listJobs)
 	mux.HandleFunc("POST /api/jobs", s.createJob)
 	mux.HandleFunc("GET /api/jobs/{id}", s.getJob)
@@ -31,6 +37,12 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("DELETE /api/jobs/{id}", s.deleteJob)
 	mux.HandleFunc("GET /api/jobs/{id}/runs", s.listRuns)
 	return mux
+}
+
+// index serves the embedded dashboard page.
+func (s *Server) index(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = w.Write(indexHTML)
 }
 
 // jobInput is the create/update request body.

@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Krono — self-hosted job scheduler</title>
+<style>
+  :root{--bg:#0f1419;--panel:#1a2129;--line:#2b3947;--fg:#e6edf3;--muted:#8b97a6;--accent:#4493f8;--ok:#3fb950;--bad:#f85149;--warn:#d29922}
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--fg)}
+  header{padding:18px 24px;border-bottom:1px solid var(--line)}
+  header h1{margin:0;font-size:20px}
+  header p{margin:2px 0 0;color:var(--muted);font-size:13px}
+  main{max-width:980px;margin:0 auto;padding:24px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:20px}
+  h2{font-size:12px;margin:0 0 12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:12px}
+  tr:last-child td{border-bottom:none}
+  input,select{background:var(--bg);border:1px solid var(--line);color:var(--fg);padding:7px 9px;border-radius:6px;font:inherit}
+  button{background:var(--accent);color:#fff;border:0;padding:7px 12px;border-radius:6px;cursor:pointer;font:inherit}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--fg)}
+  button.danger{background:transparent;border:1px solid var(--line);color:var(--bad)}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .row input{flex:1;min-width:130px}
+  .ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--warn)}.muted{color:var(--muted)}
+  .mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
+  pre{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px;margin:0;max-height:160px;overflow:auto;font-size:12px;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<header>
+  <h1>Krono</h1>
+  <p>self-hosted job scheduler — shell, HTTP, and AI-agent jobs on a schedule</p>
+</header>
+<main>
+  <div class="panel">
+    <h2 id="formTitle">New job</h2>
+    <form id="jobForm">
+      <input type="hidden" id="jobId">
+      <div class="row" style="margin-bottom:8px">
+        <input id="name" placeholder="name" required>
+        <input id="schedule" placeholder="schedule — e.g. 0 8 * * 1-5  or  @every 30s" required>
+        <select id="type"><option value="shell">shell</option><option value="http">http</option></select>
+      </div>
+      <div class="row">
+        <input id="command" placeholder="command — a shell line, or an HTTP URL" required>
+        <label class="muted"><input type="checkbox" id="enabled" checked> enabled</label>
+        <button type="submit" id="submitBtn">Create</button>
+        <button type="button" class="ghost" id="resetBtn">Reset</button>
+      </div>
+      <div id="formError" class="bad" style="margin-top:8px"></div>
+    </form>
+  </div>
+
+  <div class="panel">
+    <h2>Jobs</h2>
+    <table>
+      <thead><tr><th>Name</th><th>Schedule</th><th>Type</th><th>Enabled</th><th>Last run</th><th></th></tr></thead>
+      <tbody id="jobs"><tr><td colspan="6" class="muted">loading…</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="panel" id="runsPanel" style="display:none">
+    <h2 id="runsTitle">Runs</h2>
+    <div id="runsBody"></div>
+  </div>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const api = (m, p, b) => fetch(p, {method:m, headers:{'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined});
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const cls = s => s === 'success' ? 'ok' : s === 'failure' ? 'bad' : 'warn';
+let jobsById = {};
+
+async function loadJobs() {
+  let jobs;
+  try { jobs = await (await api('GET', '/api/jobs')).json(); }
+  catch { $('jobs').innerHTML = '<tr><td colspan="6" class="bad">failed to load jobs</td></tr>'; return; }
+  jobsById = {};
+  const tb = $('jobs');
+  if (!jobs.length) { tb.innerHTML = '<tr><td colspan="6" class="muted">no jobs yet — create one above</td></tr>'; return; }
+  tb.innerHTML = '';
+  for (const j of jobs) {
+    jobsById[j.id] = j;
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      `<td>${esc(j.name)}</td><td class="mono">${esc(j.schedule)}</td><td>${esc(j.type)}</td>` +
+      `<td>${j.enabled ? '<span class="ok">yes</span>' : '<span class="muted">no</span>'}</td>` +
+      `<td id="last-${j.id}" class="muted">—</td>` +
+      `<td class="row"><button class="ghost" data-runs="${j.id}">Runs</button>` +
+      `<button class="ghost" data-edit="${j.id}">Edit</button>` +
+      `<button class="danger" data-del="${j.id}">Delete</button></td>`;
+    tb.appendChild(tr);
+    fillLast(j.id);
+  }
+}
+
+async function fillLast(id) {
+  const runs = await (await api('GET', `/api/jobs/${id}/runs`)).json();
+  const cell = $(`last-${id}`);
+  if (!cell) return;
+  if (!runs.length) { cell.textContent = 'never run'; return; }
+  cell.innerHTML = `<span class="${cls(runs[0].status)}">${esc(runs[0].status)}</span> ` +
+    `<span class="muted">${new Date(runs[0].startedAt).toLocaleString()}</span>`;
+}
+
+async function showRuns(id) {
+  const job = jobsById[id];
+  const runs = await (await api('GET', `/api/jobs/${id}/runs`)).json();
+  $('runsTitle').textContent = `Runs — ${job ? job.name : id}`;
+  $('runsPanel').style.display = '';
+  const rows = runs.length ? runs.map(r =>
+    `<tr><td><span class="${cls(r.status)}">${esc(r.status)}</span></td>` +
+    `<td class="muted mono">${new Date(r.startedAt).toLocaleString()}</td>` +
+    `<td class="mono">exit ${r.exitCode}</td>` +
+    `<td><pre>${esc(r.output) || '(no output)'}</pre></td></tr>`).join('')
+    : '<tr><td class="muted">no runs yet</td></tr>';
+  $('runsBody').innerHTML =
+    `<table><thead><tr><th>Status</th><th>Started</th><th>Exit</th><th>Output</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function editJob(id) {
+  const j = jobsById[id];
+  if (!j) return;
+  $('jobId').value = j.id; $('name').value = j.name; $('schedule').value = j.schedule;
+  $('type').value = j.type; $('command').value = j.command; $('enabled').checked = j.enabled;
+  $('formTitle').textContent = 'Edit job #' + j.id;
+  $('submitBtn').textContent = 'Save';
+  window.scrollTo(0, 0);
+}
+
+function resetForm() {
+  $('jobForm').reset();
+  $('jobId').value = ''; $('enabled').checked = true;
+  $('formTitle').textContent = 'New job';
+  $('submitBtn').textContent = 'Create';
+  $('formError').textContent = '';
+}
+
+async function delJob(id) {
+  if (!confirm('Delete this job?')) return;
+  await api('DELETE', `/api/jobs/${id}`);
+  loadJobs();
+}
+
+$('jobForm').onsubmit = async e => {
+  e.preventDefault();
+  const id = $('jobId').value;
+  const body = {
+    name: $('name').value, schedule: $('schedule').value, type: $('type').value,
+    command: $('command').value, enabled: $('enabled').checked,
+  };
+  const r = await api(id ? 'PUT' : 'POST', id ? `/api/jobs/${id}` : '/api/jobs', body);
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    $('formError').textContent = err.error || ('HTTP ' + r.status);
+    return;
+  }
+  resetForm();
+  loadJobs();
+};
+
+$('resetBtn').onclick = resetForm;
+$('jobs').onclick = e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.dataset.runs) showRuns(+b.dataset.runs);
+  else if (b.dataset.edit) editJob(+b.dataset.edit);
+  else if (b.dataset.del) delJob(+b.dataset.del);
+};
+
+loadJobs();
+setInterval(loadJobs, 5000);
+</script>
+</body>
+</html>
