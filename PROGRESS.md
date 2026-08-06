@@ -27,7 +27,7 @@ Krono is live and working, and dashboard edits apply without a restart.
 - Run tools/dashboard.ps1 daily (Task Scheduler) — the PDCA C-Check.
 
 ## Notes
-- Go: C:\Users\RD16019\go-toolchain\go\bin\go.exe ; go.mod: go 1.25.0, modernc.org/sqlite.
+- Toolchain: Go 1.25.0 (see `go.mod`), with `modernc.org/sqlite`.
 - git remote origin = https://github.com/MackDing/krono.git (HTTPS).
 - Hooks are PowerShell; .claude/settings.json not wired (classifier-blocked).
 - Build loop: TDD -> independent evaluator -> commit checkpoint.
